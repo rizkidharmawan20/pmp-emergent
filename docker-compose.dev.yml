@@ -1,121 +1,63 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: challenge_platform_db_dev
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
+  db:
+    image: postgres:14-alpine
+    container_name: pmp_db_dev
+    restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: challenge_platform
+      - POSTGRES_USER=pmpuser
+      - POSTGRES_PASSWORD=pmppassword
+      - POSTGRES_DB=pmpdb_dev
     volumes:
-      - mongodb_data_dev:/data/db
-      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-    networks:
-      - challenge_network_dev
-
-  # Redis for caching and queues
-  redis:
-    image: redis:7.2-alpine
-    container_name: challenge_platform_redis_dev
-    restart: unless-stopped
+      - postgres_dev_data:/var/lib/postgresql/data
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data_dev:/data
+      - "5433:5432" # Map DB port ke host yang berbeda untuk menghindari konflik
     networks:
-      - challenge_network_dev
+      - pmp-network
 
-  # Backend API (Development mode with hot reload)
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: challenge_platform_backend_dev
-    restart: unless-stopped
-    ports:
-      - "8001:8001"
-    environment:
-      - MONGO_URL=mongodb://admin:password123@mongodb:27017/challenge_platform?authSource=admin
-      - DB_NAME=challenge_platform
-      - JWT_SECRET=dev-secret-key
-      - REDIS_URL=redis://redis:6379
-      - ENVIRONMENT=development
+    container_name: pmp_backend_dev
+    restart: always
     depends_on:
-      - mongodb
-      - redis
+      - db
     volumes:
-      - ./backend:/app
-      - backend_logs_dev:/app/logs
+      - ./backend/src:/app/src # Mount source code untuk hot-reloading
+      - ./backend/prisma:/app/prisma
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - DATABASE_URL=postgresql://pmpuser:pmppassword@db:5432/pmpdb_dev
+      - JWT_SECRET=your-dev-jwt-key
+      - JWT_EXPIRES_IN=1d
+    ports:
+      - "5000:5000"
     networks:
-      - challenge_network_dev
-    command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+      - pmp-network
+    command: sh -c "npm install && npx prisma db push && npm run dev" # Gunakan nodemon
 
-  # Frontend Application (Development mode)
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: challenge_platform_frontend_dev
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
-      - NODE_ENV=development
+    container_name: pmp_frontend_dev
+    restart: always
     depends_on:
       - backend
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    networks:
-      - challenge_network_dev
-
-  # MongoDB Admin Interface
-  mongo-express:
-    image: mongo-express:latest
-    container_name: challenge_platform_mongo_express_dev
-    restart: unless-stopped
+      - ./frontend/src:/app/src
     ports:
-      - "8081:8081"
+      - "3000:3000"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
-      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: admin
-    depends_on:
-      - mongodb
+      - REACT_APP_BACKEND_URL=http://localhost:5000
     networks:
-      - challenge_network_dev
-
-  # Redis Commander
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: challenge_platform_redis_commander_dev
-    restart: unless-stopped
-    ports:
-      - "8082:8081"
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    depends_on:
-      - redis
-    networks:
-      - challenge_network_dev
+      - pmp-network
 
 networks:
-  challenge_network_dev:
+  pmp-network:
     driver: bridge
 
 volumes:
-  mongodb_data_dev:
-    driver: local
-  redis_data_dev:
-    driver: local
-  backend_logs_dev:
-    driver: local
+  postgres_dev_data:

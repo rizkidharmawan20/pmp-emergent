@@ -1,147 +1,56 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: challenge_platform_db
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
+  db:
+    image: postgres:14-alpine
+    container_name: pmp_db_prod
+    restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: challenge_platform
+      - POSTGRES_USER=pmpuser
+      - POSTGRES_PASSWORD=pmppassword
+      - POSTGRES_DB=pmpdb
     volumes:
-      - mongodb_data:/data/db
-      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - postgres_data:/var/lib/postgresql/data
     networks:
-      - challenge_network
+      - pmp-network
 
-  # Redis for caching and queues
-  redis:
-    image: redis:7.2-alpine
-    container_name: challenge_platform_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - challenge_network
-
-  # Backend API
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: challenge_platform_backend
-    restart: unless-stopped
-    ports:
-      - "8001:8001"
-    environment:
-      - MONGO_URL=mongodb://admin:password123@mongodb:27017/challenge_platform?authSource=admin
-      - DB_NAME=challenge_platform
-      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
-      - REDIS_URL=redis://redis:6379
-      - ENVIRONMENT=development
+    container_name: pmp_backend_prod
+    restart: always
     depends_on:
-      - mongodb
-      - redis
-    volumes:
-      - ./backend:/app
-      - backend_logs:/app/logs
+      - db
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://pmpuser:pmppassword@db:5432/pmpdb
+      - JWT_SECRET=your-super-secret-jwt-key-for-production
+      - JWT_EXPIRES_IN=7d
+    ports:
+      - "5000:5000"
     networks:
-      - challenge_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - pmp-network
+    command: sh -c "npx prisma migrate deploy && npm start"
 
-  # Frontend Application
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: challenge_platform_frontend
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
+    container_name: pmp_frontend_prod
+    restart: always
     depends_on:
       - backend
-    networks:
-      - challenge_network
-
-  # Nginx Reverse Proxy (Production)
-  nginx:
-    image: nginx:alpine
-    container_name: challenge_platform_nginx
-    restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - nginx_logs:/var/log/nginx
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - challenge_network
-    profiles:
-      - production
-
-  # Development Tools
-  mongo-express:
-    image: mongo-express:latest
-    container_name: challenge_platform_mongo_express
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
+      - "3000:3000"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
-      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: admin
-    depends_on:
-      - mongodb
+      - REACT_APP_BACKEND_URL=http://localhost:5000 # URL backend dari perspektif browser
     networks:
-      - challenge_network
-    profiles:
-      - development
-
-  # Redis Commander
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: challenge_platform_redis_commander
-    restart: unless-stopped
-    ports:
-      - "8082:8081"
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    depends_on:
-      - redis
-    networks:
-      - challenge_network
-    profiles:
-      - development
+      - pmp-network
 
 networks:
-  challenge_network:
+  pmp-network:
     driver: bridge
 
 volumes:
-  mongodb_data:
-    driver: local
-  redis_data:
-    driver: local
-  backend_logs:
-    driver: local
-  nginx_logs:
-    driver: local
+  postgres_data:

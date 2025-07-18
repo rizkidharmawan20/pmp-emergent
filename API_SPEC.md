@@ -227,7 +227,9 @@ GET /api/challenges?page=2&limit=10&sortBy=startDate&sortOrder=asc&status=active
   "rewardRate": 1000,                     // required, min 1
   "startDate": "2024-07-01",             // required, ISO 8601
   "endDate": "2024-07-31",               // required, ISO 8601
-  "category": "Fashion"                  // required
+  "category": "Fashion",                  // required               
+  "tags": ["summer", "ootd", "style"],       
+  "targetPlatform": "any"      
 }
 ```
 #### Success Response
@@ -611,15 +613,19 @@ GET /api/challenges?page=2&limit=10&sortBy=startDate&sortOrder=asc&status=active
 ### User
 ```json
 {
-  "id": "2",
+  "id": "usr_2",
   "name": "Jane Smith",
   "email": "jane@example.com",
   "role": "clipper",
-  "avatar": "https://...",
-  "instagramConnected": true,
-  "tiktokConnected": true,
-  "balance": 0,
-  "payoutBalance": 125000,
+  "avatar": "https://.../avatar.jpg",
+  "socialConnections": {
+    "instagram": { "username": "janesmith", "connectedAt": "..." },
+    "tiktok": { "username": "janesmith.tt", "connectedAt": "..." }
+  },
+  "wallet": {
+    "balance": 250000,
+    "payoutBalance": 125000
+  },
   "createdAt": "2024-07-01T09:00:00Z",
   "updatedAt": "2024-07-20T09:00:00Z"
 }
@@ -628,22 +634,28 @@ GET /api/challenges?page=2&limit=10&sortBy=startDate&sortOrder=asc&status=active
 ### Challenge
 ```json
 {
-  "id": "1",
+  "id": "ch_1",
   "title": "Summer Fashion Challenge",
   "description": "Show off your best summer outfits...",
-  "rules": "Must include #SummerFashion...",
-  "mediaUrl": "https://...",
+  "rules": "Must include #SummerFashion and tag our account...",
+  "mediaUrl": "https://.../challenge-video.mp4",
   "budget": 1000000,
   "budgetUsed": 350000,
+  "budgetRemaining": 650000, 
   "rewardRate": 1000,
-  "startDate": "2024-07-01",
-  "endDate": "2024-07-31",
-  "status": "active",
-  "creatorId": "1",
-  "creatorName": "John Doe",
+  "startDate": "2024-08-01T00:00:00Z",
+  "endDate": "2024-08-31T23:59:59Z",
+  "status": "active", 
+  "creator": {
+    "id": "usr_1",
+    "name": "John Doe",
+    "avatar": "https://.../creator-avatar.jpg"
+  },
   "participantCount": 25,
   "submissionCount": 18,
   "category": "Fashion",
+  "tags": ["summer", "ootd", "style"],
+  "targetPlatform": "any",
   "createdAt": "2024-07-01T09:00:00Z",
   "updatedAt": "2024-07-20T09:00:00Z"
 }
@@ -652,19 +664,28 @@ GET /api/challenges?page=2&limit=10&sortBy=startDate&sortOrder=asc&status=active
 ### Submission
 ```json
 {
-  "id": "1",
-  "challengeId": "1",
-  "userId": "2",
-  "userName": "Jane Smith",
-  "videoUrl": "https://www.instagram.com/p/example1",
-  "platform": "instagram",
-  "status": "approved",
-  "views": 15420,
-  "likes": 892,
-  "comments": 45,
+  "id": "sub_1",
+  "challengeId": "ch_1",
+  "user": {
+      "id": "usr_2",
+      "name": "Jane Smith",
+      "avatar": "https://.../clipper-avatar.jpg"
+  },
+  "videoUrl": "[https://www.instagram.com/p/Cxyz](https://www.instagram.com/p/Cxyz)...",
+  "platform": "instagram", 
+  "caption": "My best summer look for this challenge!",
+  "thumbnailUrl": "https://.../video-thumbnail.jpg",
+  "status": "approved", 
+  "statusReason": null, 
+  "analytics": {
+    "views": 15420,
+    "likes": 892,
+    "comments": 45
+  },
   "earnings": 15420,
-  "createdAt": "2024-07-10T08:30:00Z",
-  "lastTracked": "2024-07-20T14:22:00Z"
+  "isWinner": false,
+  "createdAt": "2024-08-10T08:30:00Z",
+  "lastTrackedAt": "2024-08-20T14:22:00Z"
 }
 ```
 

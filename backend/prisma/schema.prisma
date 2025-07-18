@@ -1,0 +1,119 @@
+ // This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String       @id @default(cuid())
+  name              String
+  email             String       @unique
+  password          String
+  role              Role
+  avatar            String?
+  socialConnections Json?
+  walletBalance     Int          @default(0)
+  payoutBalance     Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  challenges        Challenge[]
+  submissions       Submission[]
+  transactions      Transaction[]
+  notifications     Notification[]
+}
+
+model Challenge {
+  id              String       @id @default(cuid())
+  title           String
+  description     String       @db.Text
+  rules           String       @db.Text
+  mediaUrl        String?
+  budget          Int
+  budgetUsed      Int          @default(0)
+  rewardRate      Int
+  startDate       DateTime
+  endDate         DateTime
+  status          ChallengeStatus @default(UPCOMING)
+  category        String
+  tags            String[]
+  targetPlatform  Platform
+  creator         User         @relation(fields: [creatorId], references: [id])
+  creatorId       String
+  submissions     Submission[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Submission {
+  id            String   @id @default(cuid())
+  videoUrl      String
+  caption       String?
+  platform      Platform
+  thumbnailUrl  String?
+  status        SubmissionStatus @default(PENDING)
+  statusReason  String?
+  views         Int      @default(0)
+  likes         Int      @default(0)
+  comments      Int      @default(0)
+  earnings      Int      @default(0)
+  isWinner      Boolean  @default(false)
+  lastTrackedAt DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  challenge     Challenge @relation(fields: [challengeId], references: [id])
+  challengeId   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  type        String // "topup", "payout", "reward"
+  amount      Int
+  description String
+  status      String   // "completed", "pending", "failed"
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   // "info", "warning", "success"
+  read      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  CREATOR
+  CLIPPER
+}
+
+enum Platform {
+  INSTAGRAM
+  TIKTOK
+  ANY
+}
+
+enum ChallengeStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
