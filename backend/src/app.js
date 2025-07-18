@@ -3,6 +3,8 @@ const cors = require('cors');
 const morgan = 'morgan';
 const apiRoutes = require('./api');
 const { errorMiddleware } = require('./middlewares/error.middleware');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const app = express();
 
@@ -16,6 +18,9 @@ if (process.env.NODE_ENV === 'development') {
 
 // API Routes
 app.use('/api', apiRoutes);
+
+// Swagger Docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Health Check
 app.get('/', (req, res) => {
